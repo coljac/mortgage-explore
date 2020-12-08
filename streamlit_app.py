@@ -126,8 +126,6 @@ st.sidebar.markdown("## House and loan")
 house_cost = st.sidebar.slider('Cost of house', value=1000000, min_value=300000, max_value=2000000, step=5000)
 state = st.sidebar.selectbox("State:", ["ACT", "Vic", "NSW", "Tas", "Qld", "WA", "SA", "NT"], index=1)
 stamp_duty, info = calc_stamp_duty(state, house_cost)
-if state == "Vic":
-    info = "(discount applied)"
 st.sidebar.text(f"Stamp duty: ${stamp_duty:,} {info}")
 cash = st.sidebar.number_input('Total cash', value=200000, step=5000)
 borrow = st.sidebar.slider("Amount to borrow", value=house_cost + stamp_duty - cash, min_value=500000, max_value=house_cost, step=10000)
