@@ -163,7 +163,7 @@ if len(info) > 0:
    st.sidebar.markdown(f"*{info}")
 
 loan = Loan(borrow, rate, term*12)
-income = st.number_input("Monthly net income", value=15000, step=500)
+income = st.number_input("Monthly net income", value=9000, step=500)
 expenses = st.number_input("Monthly expenses", value=2500, step=100)
 st.markdown(f"Min. monthly payment: **${int(loan.payment_monthly):,}**")
 reserve = st.slider("Reserve cash (monthly) - goes into offset account if available", min_value=0, max_value=int(income-expenses-loan.payment_monthly), step=500)
