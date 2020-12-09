@@ -33,7 +33,7 @@ def d(r, n):
     return (np.power(1+r, n) -1)/(r*np.power(1+r, n))
 
 @st.cache
-def make_figure(results):
+def make_figure(results, offset=True):
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
     fig.add_trace(go.Scatter(x=[z['month']/12 for z in results], 
@@ -46,7 +46,8 @@ def make_figure(results):
                     hovertemplate = '%{x:.1f} years<br>\nInterest: %{y:$,.0f}<extra></extra>',
                     mode='lines+markers',
                     name='Interest paid'))
-    fig.add_trace(go.Scatter(x=[z['month']/12 for z in results], 
+    if offset:
+        fig.add_trace(go.Scatter(x=[z['month']/12 for z in results], 
                             y=[z['offset'] for z in results],
                     mode='lines+markers',
                     hovertemplate = '%{x:.1f} years<br>\nOffset: %{y:$,.0f}<extra></extra>',
@@ -86,20 +87,41 @@ def scenario(rate, principle, payment, cash_left=0, offset_average=0):
             
 
 @st.cache
-def scenario2(rate, principle, income=0, start_cash=0, expenses=2500, reserve=1500):
+def scenario2(rate, principle, income=0, start_cash=0, expenses=2500, reserve=1500, offset=True):
     loan = Loan(principle, rate, 30*12)
-    loan.offset = start_cash
+    if offset:
+        loan.offset = start_cash
     results = []
     for m in range(12*30):
         payment = income - expenses - reserve
-        loan.offset += reserve
+        if offset:
+            loan.offset += reserve
         i = loan.make_payment(payment)
         results.append({"month": m, "principle": loan.principle, "interest_paid": loan.interest_paid, "offset": loan.offset})
         if loan.principle <= 0 or loan.principle <= loan.offset:
             break    
     return results
 
+@st.cache
+def load_stamps():
+    return pd.read_csv("stamps.csv")
+
+# @st.cache
 def calc_stamp_duty(state, house_cost):
+    duty = 0
+    info = ""
+    stamps = load_stamps()
+    stamps = stamps[stamps.state == state]
+    for i, row in stamps.iterrows():
+        if house_cost < row['max']:
+            duty = row['constant'] + .01*row['percent']*(house_cost-row['subtract'])
+    if state == "Vic" and house_cost < 1000000:
+        duty *= 0.75
+        info = "discount applied"
+    return int(duty), info
+
+
+def nope():
     duty = 0
     message = ""
     if state == "Vic":
@@ -126,25 +148,29 @@ st.sidebar.markdown("## House and loan")
 house_cost = st.sidebar.slider('Cost of house', value=1000000, min_value=300000, max_value=2000000, step=5000)
 state = st.sidebar.selectbox("State:", ["ACT", "Vic", "NSW", "Tas", "Qld", "WA", "SA", "NT"], index=1)
 stamp_duty, info = calc_stamp_duty(state, house_cost)
-st.sidebar.text(f"Stamp duty: ${stamp_duty:,} {info}")
+star= "" if len(info) == 0 else "*"
+st.sidebar.markdown(f"Stamp duty: ${stamp_duty:,}{star}")
 cash = st.sidebar.number_input('Total cash', value=200000, step=5000)
 borrow = st.sidebar.slider("Amount to borrow", value=house_cost + stamp_duty - cash, min_value=500000, max_value=house_cost, step=10000)
 cash_left = cash - house_cost - stamp_duty + borrow 
 lvr = borrow/house_cost
-st.sidebar.text(f"Cash left: ${cash_left}     LVR: {lvr*100:.1f}%")
+st.sidebar.markdown(f"Cash left: ${cash_left:,}  --  LVR: {lvr*100:.1f}%")
 rate = st.sidebar.slider("Interest rate", value=2.6, min_value=2.0, max_value=5.0, step=.1)
 term = st.sidebar.radio("Term", [20, 25, 30], index=2)
 offset = st.sidebar.radio("Offset", ['Yes', 'No'], index=0)
 
+if len(info) > 0:
+   st.sidebar.markdown(f"*{info}")
+
 loan = Loan(borrow, rate, term*12)
 income = st.number_input("Monthly net income", value=15000, step=500)
 expenses = st.number_input("Monthly expenses", value=2500, step=100)
-st.text(f"Min. payment: ${int(loan.payment_monthly)}")
-reserve = st.slider("Reserve cash (monthly)", min_value=0, max_value=int(income-expenses-loan.payment_monthly), step=500)
+st.markdown(f"Min. monthly payment: **${int(loan.payment_monthly):,}**")
+reserve = st.slider("Reserve cash (monthly) - goes into offset account if available", min_value=0, max_value=int(income-expenses-loan.payment_monthly), step=500)
 
-results = scenario2(rate, borrow, income=income, start_cash=cash_left, expenses=expenses, reserve=reserve)
+results = scenario2(rate, borrow, income=income, start_cash=cash_left, expenses=expenses, reserve=reserve, offset=(offset=="Yes"))
 st.markdown(f"### Paid off in {len(results)/12:.1f} years. Total interest paid: ${int(results[-1]['interest_paid']):,}")
-fig = make_figure(results)
+fig = make_figure(results, offset=(offset=="Yes"))
 
 st.plotly_chart(fig)
 
