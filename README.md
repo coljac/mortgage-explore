@@ -6,3 +6,6 @@ The stamp duty calculator is a little simplistic, and does not include first hom
 
 This can be tested using Streamlit share, [here](https://share.streamlit.io/coljac/mortgage-explore/main).
 
+TODO: Accessibility
+
+![Screenshot of streamlit](mcalc.png)
